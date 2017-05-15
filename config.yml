@@ -1,0 +1,21 @@
+---
+hostPort: %host%:%port%
+ssl: false
+lowercaseOutputLabelNames: true
+lowercaseOutputName: true
+
+rules:
+- pattern: scope=updateHandler, name=org.apache.solr.update.*><>(adds|autocommit maxDocs|autocommit maxTime|autocommits|commits|cumulative_adds|cumulative_deletesById|cumulative_deletesByQuery|cumulative_errors|deletesById|deletesByQuery|docsPending|errors|expungeDeletes|optimizes|rollbacks|soft autocommits)
+
+- pattern: name=org.apache.solr.handler.*><>(15minRateReqsPerSecond|5minRateReqsPerSecond|75thPcRequestTime|95thPcRequestTime|999thPcRequestTime|99thPcRequestTime|avgRequestsPerSecond|avgTimePerRequest|medianRequestTime)
+
+- pattern: category=(.*), scope=(.*), name=(org.apache.solr.handler.*><>(errors|handlerStart|requests|timeouts|totalTime))
+  name: solr_core_$4
+  labels:
+    category: $1
+    scope: $2
+    name: $3
+    type: COUNTER
+
+- pattern: category=CACHE, scope=(.*), name=org.apache.solr.search.(FastLRUCache|LRUCache)><>(cumulative_evictions|cumulative_hitratio,string|cumulative_hits|cumulative_inserts|cumulative_lookups|evictions|hitratio|hits|inserts|lookups|size|warmupTime)
+- pattern: name=org.apache.solr.search.SolrIndexSearcher><>(deletedDocs|maxDoc|numDoc|warmupTime)
