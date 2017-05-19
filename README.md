@@ -1,7 +1,7 @@
 # Solr Exporter for Prometheus
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/noony/prometheus-solr-exporter?maxAge=604800)][hub]
-[![Docker Build Status](https://img.shields.io/docker/build/noony/prometheus-solr-exporter)][hub]
+[![Docker Pulls](https://img.shields.io/docker/pulls/noony/prometheus-solr-exporter.svg?maxAge=604800)][hub]
+[![Docker Build Status](https://img.shields.io/docker/build/noony/prometheus-solr-exporter.svg)][hub]
 
 A [Solr](http://lucene.apache.org/solr/) exporter for prometheus.
 
