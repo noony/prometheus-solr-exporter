@@ -1,0 +1,6 @@
+.build
+solr_exporter
+*.tar.gz
+*-stamp
+.idea
+.tarballs
