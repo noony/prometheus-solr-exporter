@@ -315,6 +315,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		for name, metrics := range queryMetrics {
+			if strings.Contains(name, "@") || strings.Contains(name, "/admin") || strings.Contains(name, "/debug/dump") || strings.Contains(name, "/schema") || strings.Contains(name, "org.apache.solr.handler.admin") {
+				continue
+			}
+
 			e.gaugeQuery["15min_rate_reqs_per_second"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.One5minRateReqsPerSecond))
 			e.gaugeQuery["5min_rate_reqs_per_second"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.FiveMinRateReqsPerSecond))
 			e.gaugeQuery["75th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Seven5thPcRequestTime))
@@ -338,6 +342,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		for name, metrics := range updateMetrics {
+			if strings.Contains(name, "@") || strings.Contains(name, "/admin") || strings.Contains(name, "/debug/dump") || strings.Contains(name, "/schema") {
+				continue
+			}
 			var autoCommitMaxTime int
 			if len(metrics.Stats.AutocommitMaxTime) > 2 {
 				autoCommitMaxTime, _ = strconv.Atoi(metrics.Stats.AutocommitMaxTime[:len(metrics.Stats.AutocommitMaxTime)-2])
@@ -367,6 +374,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			return
 		}
 		for name, metrics := range cacheMetrics {
+			if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" {
+				continue
+			}
 			e.gaugeCache["cumulative_evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeEvictions))
 			e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHitratio))
 			e.gaugeCache["cumulative_hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHits))
