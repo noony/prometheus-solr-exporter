@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -308,8 +309,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			e.gaugeCore["num_docs"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.NumDocs))
 		}
 
+		b := bytes.Replace(mBeansData.SolrMbeans[3], []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var queryMetrics map[string]QueryHandler
-		if err := json.Unmarshal(mBeansData.SolrMbeans[3], &queryMetrics); err != nil {
+		if err := json.Unmarshal(b, &queryMetrics); err != nil {
 			log.Errorf("Failed to unmarshal mbeans query metrics JSON into struct: %v", err)
 			return
 		}
@@ -368,27 +370,59 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			e.gaugeUpdate["soft_autocommits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.SoftAutocommits))
 		}
 
+		// Try to decode solr > v5 cache metrics
 		var cacheMetrics map[string]Cache
 		if err := json.Unmarshal(mBeansData.SolrMbeans[7], &cacheMetrics); err != nil {
-			log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct: %v", err)
-			return
-		}
-		for name, metrics := range cacheMetrics {
-			if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" {
-				continue
+			var cacheMetricsSolrV4 map[string]CacheSolrV4
+			// Try to decode solr v4 metrics
+			if err := json.Unmarshal(mBeansData.SolrMbeans[7], &cacheMetricsSolrV4); err != nil {
+				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct: %v", err)
+				return
+			} else {
+				for name, metrics := range cacheMetricsSolrV4 {
+					if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" {
+						continue
+					}
+					hitratio, err := strconv.ParseFloat(metrics.Stats.Hitratio, 64)
+					if err != nil {
+						log.Errorf("Fail to convert Hitratio in float")
+					}
+					cumulative_hitratio, err := strconv.ParseFloat(metrics.Stats.CumulativeHitratio, 64)
+					if err != nil {
+						log.Errorf("Fail to convert Cumulative Hitratio in float")
+					}
+					e.gaugeCache["cumulative_evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeEvictions))
+					e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(cumulative_hitratio)
+					e.gaugeCache["cumulative_hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHits))
+					e.gaugeCache["cumulative_inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeInserts))
+					e.gaugeCache["cumulative_lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeLookups))
+					e.gaugeCache["evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Evictions))
+					e.gaugeCache["hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(hitratio)
+					e.gaugeCache["hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Hits))
+					e.gaugeCache["inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Inserts))
+					e.gaugeCache["lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Lookups))
+					e.gaugeCache["size"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Size))
+					e.gaugeCache["warmup_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.WarmupTime))
+				}
 			}
-			e.gaugeCache["cumulative_evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeEvictions))
-			e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHitratio))
-			e.gaugeCache["cumulative_hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHits))
-			e.gaugeCache["cumulative_inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeInserts))
-			e.gaugeCache["cumulative_lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeLookups))
-			e.gaugeCache["evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Evictions))
-			e.gaugeCache["hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Hitratio))
-			e.gaugeCache["hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Hits))
-			e.gaugeCache["inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Inserts))
-			e.gaugeCache["lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Lookups))
-			e.gaugeCache["size"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Size))
-			e.gaugeCache["warmup_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.WarmupTime))
+		} else {
+			for name, metrics := range cacheMetrics {
+				if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" {
+					continue
+				}
+				e.gaugeCache["cumulative_evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeEvictions))
+				e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHitratio))
+				e.gaugeCache["cumulative_hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHits))
+				e.gaugeCache["cumulative_inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeInserts))
+				e.gaugeCache["cumulative_lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeLookups))
+				e.gaugeCache["evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Evictions))
+				e.gaugeCache["hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Hitratio))
+				e.gaugeCache["hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Hits))
+				e.gaugeCache["inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Inserts))
+				e.gaugeCache["lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Lookups))
+				e.gaugeCache["size"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Size))
+				e.gaugeCache["warmup_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.WarmupTime))
+			}
 		}
 	}
 

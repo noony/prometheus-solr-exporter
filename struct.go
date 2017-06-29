@@ -92,3 +92,21 @@ type Cache struct {
 		WarmupTime          int     `json:"warmupTime"`
 	} `json:"stats"`
 }
+
+type CacheSolrV4 struct {
+	Class string `json:"class"`
+	Stats struct {
+		CumulativeEvictions int    `json:"cumulative_evictions"`
+		CumulativeHitratio  string `json:"cumulative_hitratio"`
+		CumulativeHits      int    `json:"cumulative_hits"`
+		CumulativeInserts   int    `json:"cumulative_inserts"`
+		CumulativeLookups   int    `json:"cumulative_lookups"`
+		Evictions           int    `json:"evictions"`
+		Hitratio            string `json:"hitratio"`
+		Hits                int    `json:"hits"`
+		Inserts             int    `json:"inserts"`
+		Lookups             int    `json:"lookups"`
+		Size                int    `json:"size"`
+		WarmupTime          int    `json:"warmupTime"`
+	} `json:"stats"`
+}
