@@ -41,6 +41,10 @@ make test
 
 [travisci]: https://travis-ci.org/noony/prometheus-solr-exporter
 
+### Grafana dashboard
+
+See https://grafana.com/dashboards/2551
+
 ## License
 
 Apache License 2.0, see [LICENSE](https://github.com/noony/prometheus-solr-exporter/blob/master/LICENSE).
