@@ -35,12 +35,12 @@ type Core struct {
 type QueryHandler struct {
 	Class string `json:"class"`
 	Stats struct {
-		One5minRateReqsPerSecond float64 `json:"15minRateReqsPerSecond"`
-		FiveMinRateReqsPerSecond float64 `json:"5minRateReqsPerSecond"`
+		One5minRateReqsPerSecond float64 `json:"15minRateRequestsPerSecond"`
+		FiveMinRateReqsPerSecond float64 `json:"5minRateRequestsPerSecond"`
 		Seven5thPcRequestTime    float64 `json:"75thPcRequestTime"`
 		Nine5thPcRequestTime     float64 `json:"95thPcRequestTime"`
-		Nine99thPcRequestTime    float64 `json:"999thPcRequestTime"`
 		Nine9thPcRequestTime     float64 `json:"99thPcRequestTime"`
+		Nine99thPcRequestTime    float64 `json:"999thPcRequestTime"`
 		AvgRequestsPerSecond     float64 `json:"avgRequestsPerSecond"`
 		AvgTimePerRequest        float64 `json:"avgTimePerRequest"`
 		Errors                   int     `json:"errors"`

@@ -38,8 +38,8 @@ var (
 		"5min_rate_reqs_per_second":  "5min_rate_reqs_per_second",
 		"75th_pc_request_time":       "75th_pc_request_time",
 		"95th_pc_request_time":       "95th_pc_request_time",
-		"999th_pc_request_time":      "999th_pc_request_time",
 		"99th_pc_request_time":       "99th_pc_request_time",
+		"999th_pc_request_time":      "999th_pc_request_time",
 		"avg_requests_per_second":    "avg_requests_per_second",
 		"avg_time_per_request":       "avg_time_per_request",
 		"errors":                     "errors",
@@ -294,7 +294,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		var coreMetrics map[string]Core
-		if err := json.Unmarshal(mBeansData.SolrMbeans[1], &coreMetrics); err != nil {
+		if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CORE"), &coreMetrics); err != nil {
 			log.Errorf("Failed to unmarshal mbeans core metrics JSON into struct: %v", err)
 			return
 		}
@@ -309,7 +309,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			e.gaugeCore["num_docs"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.NumDocs))
 		}
 
-		b := bytes.Replace(mBeansData.SolrMbeans[3], []byte(":\"NaN\""), []byte(":0.0"), -1)
+		b := bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "QUERY"), []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var queryMetrics map[string]QueryHandler
 		if err := json.Unmarshal(b, &queryMetrics); err != nil {
 			log.Errorf("Failed to unmarshal mbeans query metrics JSON into struct: %v", err)
@@ -317,7 +317,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		for name, metrics := range queryMetrics {
-			if strings.Contains(name, "@") || strings.Contains(name, "/admin") || strings.Contains(name, "/debug/dump") || strings.Contains(name, "/schema") || strings.Contains(name, "org.apache.solr.handler.admin") {
+			if strings.Contains(name, "@") || strings.Contains(name, "/admin") || strings.Contains(name, "/debug/dump") || strings.Contains(name, "/schema") || strings.Contains(name, "org.apache.solr.handler.admin") || !strings.HasPrefix(name, "/") {
 				continue
 			}
 
@@ -325,8 +325,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			e.gaugeQuery["5min_rate_reqs_per_second"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.FiveMinRateReqsPerSecond))
 			e.gaugeQuery["75th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Seven5thPcRequestTime))
 			e.gaugeQuery["95th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Nine5thPcRequestTime))
-			e.gaugeQuery["999th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Nine99thPcRequestTime))
 			e.gaugeQuery["99th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Nine9thPcRequestTime))
+			e.gaugeQuery["999th_pc_request_time"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Nine99thPcRequestTime))
 			e.gaugeQuery["avg_requests_per_second"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.AvgRequestsPerSecond))
 			e.gaugeQuery["avg_time_per_request"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.AvgTimePerRequest))
 			e.gaugeQuery["errors"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.Errors))
@@ -338,13 +338,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		var updateMetrics map[string]UpdateHandler
-		if err := json.Unmarshal(mBeansData.SolrMbeans[5], &updateMetrics); err != nil {
+		if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "UPDATE"), &updateMetrics); err != nil {
 			log.Errorf("Failed to unmarshal mbeans update metrics JSON into struct: %v", err)
 			return
 		}
 
 		for name, metrics := range updateMetrics {
-			if strings.Contains(name, "@") || strings.Contains(name, "/admin") || strings.Contains(name, "/debug/dump") || strings.Contains(name, "/schema") {
+			if strings.Contains(name, "@") || strings.Contains(name, "/") {
 				continue
 			}
 			var autoCommitMaxTime int
@@ -372,10 +372,10 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 		// Try to decode solr > v5 cache metrics
 		var cacheMetrics map[string]Cache
-		if err := json.Unmarshal(mBeansData.SolrMbeans[7], &cacheMetrics); err != nil {
+		if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetrics); err != nil {
 			var cacheMetricsSolrV4 map[string]CacheSolrV4
 			// Try to decode solr v4 metrics
-			if err := json.Unmarshal(mBeansData.SolrMbeans[7], &cacheMetricsSolrV4); err != nil {
+			if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetricsSolrV4); err != nil {
 				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct: %v", err)
 				return
 			} else {
@@ -445,4 +445,18 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Successfully processed stats.
 	e.up.Set(1)
+}
+
+func findMBeansData(mBeansData []json.RawMessage, query string) json.RawMessage {
+	var decoded string
+	for i := 0; i < len(mBeansData); i += 2 {
+		err := json.Unmarshal(mBeansData[i], &decoded)
+		if err == nil {
+			if decoded == query {
+				return mBeansData[i+1]
+			}
+		}
+	}
+
+	return nil
 }
