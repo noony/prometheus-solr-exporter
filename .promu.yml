@@ -1,6 +1,8 @@
 repository:
     path: github.com/noony/prometheus-solr-exporter
 build:
+    binaries:
+        - name: solr_exporter
     flags: -a -tags netgo
     ldflags: |
         -X {{repoPath}}/vendor/github.com/prometheus/common/version.Version={{.Version}}
