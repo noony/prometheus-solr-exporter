@@ -273,8 +273,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	cores := getCoresFromStatus(adminCoresStatus)
 
 	for _, coreName := range cores {
-		mBreansUrl := fmt.Sprintf(e.MbeansUrl, coreName)
-		resp, err := e.client.Get(mBreansUrl)
+		mBeansUrl := fmt.Sprintf(e.MbeansUrl, coreName)
+		resp, err := e.client.Get(mBeansUrl)
 		if err != nil {
 			log.Errorf("Error while querying Solr for mbeans stats: %v", err)
 			return
@@ -283,7 +283,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 		if resp.StatusCode != http.StatusOK {
 			log.Errorf("solr: API responded with status-code %d, expected %d, url %s",
-				resp.StatusCode, http.StatusOK, mBreansUrl)
+				resp.StatusCode, http.StatusOK, mBeansUrl)
 			return
 		}
 
