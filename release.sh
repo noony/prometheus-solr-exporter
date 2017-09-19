@@ -11,8 +11,8 @@ promu checksum .tarballs
 promu release .tarballs
 
 
-rm prometheus-solr-exporter
-ln -s .build/linux-amd64/prometheus-solr-exporter prometheus-solr-exporter
+rm solr_exporter
+ln -s .build/linux-amd64/solr_exporter solr_exporter
 
 make docker DOCKER_IMAGE_NAME=noony/prometheus-solr-exporter DOCKER_IMAGE_TAG=v$VERSION
 docker login
