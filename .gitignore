@@ -5,3 +5,4 @@ solr_exporter
 .idea
 .tarballs
 *~
+prometheus-solr-exporter
