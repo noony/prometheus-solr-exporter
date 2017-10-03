@@ -6,3 +6,4 @@ solr_exporter
 .tarballs
 *~
 prometheus-solr-exporter
+solr_exporter
