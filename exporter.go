@@ -385,7 +385,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 			var cacheMetricsSolrV4 map[string]CacheSolrV4
 			// Try to decode solr v4 metrics
 			if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetricsSolrV4); err != nil {
-				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct: %v", err)
+				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct (core : %s): %v", coreName, err)
 				return
 			} else {
 				for name, metrics := range cacheMetricsSolrV4 {

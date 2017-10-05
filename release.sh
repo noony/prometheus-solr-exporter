@@ -4,6 +4,8 @@ rm -rf .build .tarballs
 
 VERSION=$(cat VERSION)
 
+echo "Version : $VERSION"
+
 make build
 promu crossbuild
 promu crossbuild tarballs
