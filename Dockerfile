@@ -1,7 +1,20 @@
-FROM        quay.io/prometheus/busybox:latest
-MAINTAINER  noony <noony@users.noreply.github.com>
+FROM golang:1.9.1-alpine as builder
+MAINTAINER noony <noony@users.noreply.github.com>
 
-COPY solr_exporter /bin/solr_exporter
+ENV PATH /go/bin:/usr/local/go/bin:$PATH
+ENV GOPATH /go
+ENV CGO_ENABLED=0
 
-ENTRYPOINT ["/bin/solr_exporter"]
-EXPOSE     9231
+COPY . $GOPATH/src/github.com/noony/prometheus-solr-exporter
+WORKDIR $GOPATH/src/github.com/noony/prometheus-solr-exporter
+
+RUN apk add --update --no-cache \
+       make \
+       git \
+       ca-certificates
+RUN go get ./... && make build
+
+FROM quay.io/prometheus/busybox:latest
+COPY --from=builder /go/bin/prometheus-solr-exporter /bin/prometheus-solr-exporter
+ENTRYPOINT ["/bin/prometheus-solr-exporter"]
+EXPOSE 9231
