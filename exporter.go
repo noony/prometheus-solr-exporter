@@ -380,8 +380,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		// Try to decode solr > v5 cache metrics
+		b = bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "CACHE"), []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var cacheMetrics map[string]Cache
-		if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetrics); err != nil {
+		if err := json.Unmarshal(b, &cacheMetrics); err != nil {
 			var cacheMetricsSolrV4 map[string]CacheSolrV4
 			// Try to decode solr v4 metrics
 			if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetricsSolrV4); err != nil {
