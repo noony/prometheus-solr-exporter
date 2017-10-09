@@ -312,7 +312,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		b := bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "QUERY"), []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var queryMetrics map[string]QueryHandler
 		if err := json.Unmarshal(b, &queryMetrics); err != nil {
-			log.Errorf("Failed to unmarshal mbeans query metrics JSON into struct: %v", err)
+			log.Errorf("Failed to unmarshal mbeans query metrics JSON into struct: %v, json : %s", err, b)
 			return
 		}
 
@@ -383,10 +383,11 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		b = bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "CACHE"), []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var cacheMetrics map[string]Cache
 		if err := json.Unmarshal(b, &cacheMetrics); err != nil {
+			b = bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "CACHE"), []byte(":\"NaN\""), []byte(":\"0.0\""), -1)
 			var cacheMetricsSolrV4 map[string]CacheSolrV4
 			// Try to decode solr v4 metrics
-			if err := json.Unmarshal(findMBeansData(mBeansData.SolrMbeans, "CACHE"), &cacheMetricsSolrV4); err != nil {
-				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct (core : %s): %v", coreName, err)
+			if err := json.Unmarshal(b, &cacheMetricsSolrV4); err != nil {
+				log.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct (core : %s): %v, json : %s", coreName, err, b)
 				return
 			} else {
 				for name, metrics := range cacheMetricsSolrV4 {
