@@ -18,7 +18,7 @@ import (
 
 const (
 	mbeansPath     = "/admin/mbeans?stats=true&wt=json&cat=CORE&cat=QUERYHANDLER&cat=UPDATEHANDLER&cat=CACHE"
-	adminCoresPath = "/solr/admin/cores?action=STATUS&wt=json"
+	adminCoresPath = "/admin/cores?action=STATUS&wt=json"
 )
 
 var (
@@ -112,7 +112,7 @@ type Exporter struct {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(solrURI string, timeout time.Duration) *Exporter {
+func NewExporter(solrURI string, solrContextPath string, timeout time.Duration) *Exporter {
 	gaugeAdmin := make(map[string]*prometheus.GaugeVec, len(gaugeAdminMetrics))
 	gaugeCore := make(map[string]*prometheus.GaugeVec, len(gaugeCoreMetrics))
 	gaugeQuery := make(map[string]*prometheus.GaugeVec, len(gaugeQueryMetrics))
@@ -158,8 +158,8 @@ func NewExporter(solrURI string, timeout time.Duration) *Exporter {
 		}, []string{"core", "handler", "class"})
 	}
 
-	mbeansUrl := fmt.Sprintf("%s/solr/%s%s", solrURI, "%s", mbeansPath)
-	adminCoreUrl := fmt.Sprintf("%s%s", solrURI, adminCoresPath)
+	mbeansUrl := fmt.Sprintf("%s%s/%s%s", solrURI, solrContextPath, "%s", mbeansPath)
+	adminCoreUrl := fmt.Sprintf("%s%s%s", solrURI, solrContextPath, adminCoresPath)
 
 	// Init our exporter.
 	return &Exporter{

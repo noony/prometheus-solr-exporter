@@ -20,6 +20,7 @@ prometheus-solr-exporter --help
 | Argument              | Description |
 | --------              | ----------- |
 | solr.address          | URI on which to scrape Solr. (default "http://localhost:8983") |
+| solr.context-path     | Solr webapp context path. (default "/solr") |
 | solr.pid-file         | Path to Solr pid file |
 | solr.timeout          | Timeout for trying to get stats from Solr. (default 5s) |
 | web.listen-address    | Address to listen on for web interface and telemetry. (default ":9231")|
