@@ -11,6 +11,12 @@ Prometheus exporter for various metrics about Solr, written in Go.
 go get -u github.com/noony/prometheus-solr-exporter
 ```
 
+### Docker image
+
+```bash
+docker pull noony/prometheus-solr-exporter
+```
+
 ### Configuration
 
 ```bash
