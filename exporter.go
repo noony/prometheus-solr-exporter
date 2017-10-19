@@ -380,10 +380,13 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		// Try to decode solr > v5 cache metrics
-		b = bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "CACHE"), []byte(":\"NaN\""), []byte(":0.0"), -1)
+		cacheData := findMBeansData(mBeansData.SolrMbeans, "CACHE")
+		cacheDataCopy := make([]byte, len(cacheData))
+		copy(cacheDataCopy, cacheData)
+		b = bytes.Replace(cacheData, []byte(":\"NaN\""), []byte(":0.0"), -1)
 		var cacheMetrics map[string]Cache
 		if err := json.Unmarshal(b, &cacheMetrics); err != nil {
-			b = bytes.Replace(findMBeansData(mBeansData.SolrMbeans, "CACHE"), []byte(":\"NaN\""), []byte(":\"0.0\""), -1)
+			b = bytes.Replace(cacheDataCopy, []byte(":\"NaN\""), []byte(":\"0.0\""), -1)
 			var cacheMetricsSolrV4 map[string]CacheSolrV4
 			// Try to decode solr v4 metrics
 			if err := json.Unmarshal(b, &cacheMetricsSolrV4); err != nil {
@@ -463,7 +466,7 @@ func findMBeansData(mBeansData []json.RawMessage, query string) json.RawMessage 
 	for i := 0; i < len(mBeansData); i += 1 {
 		err := json.Unmarshal(mBeansData[i], &decoded)
 		if err == nil {
-			if decoded == query || decoded == query + "HANDLER" {
+			if decoded == query || decoded == query+"HANDLER" {
 				return mBeansData[i+1]
 			}
 		}

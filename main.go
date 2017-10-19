@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	namespace = "solr"
+	namespace       = "solr"
 	pidFileHelpText = `Path to Solr pid file.
 
 	If provided, the standard process metrics get exported for the Solr
