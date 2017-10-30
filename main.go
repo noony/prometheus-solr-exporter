@@ -27,12 +27,13 @@ const (
 )
 
 var (
-	listenAddress   = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9231").String()
-	metricsPath     = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-	solrURI         = kingpin.Flag("solr.address", "URI on which to scrape Solr.").Default("http://localhost:8983").String()
-	solrContextPath = kingpin.Flag("solr.context-path", "Solr webapp context path.").Default("/solr").String()
-	solrTimeout     = kingpin.Flag("solr.timeout", "Timeout for trying to get stats from Solr.").Default("5s").Duration()
-	solrPidFile     = kingpin.Flag("solr.pid-file", "").Default(pidFileHelpText).String()
+	listenAddress    = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9231").String()
+	metricsPath      = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+	solrURI          = kingpin.Flag("solr.address", "URI on which to scrape Solr.").Default("http://localhost:8983").String()
+	solrContextPath  = kingpin.Flag("solr.context-path", "Solr webapp context path.").Default("/solr").String()
+	solrExcludedCore = kingpin.Flag("solr.excluded-core", "Regex to exclude core from monitoring").Default("").String()
+	solrTimeout      = kingpin.Flag("solr.timeout", "Timeout for trying to get stats from Solr.").Default("5s").Duration()
+	solrPidFile      = kingpin.Flag("solr.pid-file", "").Default(pidFileHelpText).String()
 )
 
 var landingPage = []byte(`<html>
@@ -53,7 +54,7 @@ func main() {
 	log.Infoln("Starting solr_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	exporter := NewExporter(*solrURI, *solrContextPath, *solrTimeout)
+	exporter := NewExporter(*solrURI, *solrContextPath, *solrTimeout, *solrExcludedCore)
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(version.NewCollector("solr_exporter"))
 

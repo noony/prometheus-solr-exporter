@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -112,7 +113,7 @@ type Exporter struct {
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(solrURI string, solrContextPath string, timeout time.Duration) *Exporter {
+func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, solrExcludedCore string) *Exporter {
 	gaugeAdmin := make(map[string]*prometheus.GaugeVec, len(gaugeAdminMetrics))
 	gaugeCore := make(map[string]*prometheus.GaugeVec, len(gaugeCoreMetrics))
 	gaugeQuery := make(map[string]*prometheus.GaugeVec, len(gaugeQueryMetrics))
@@ -256,6 +257,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	solrExcludedCoreString := *solrExcludedCore
+	var regexExludedCore = regexp.MustCompile(solrExcludedCoreString)
+
 	adminCoresStatus := &AdminCoresStatus{}
 	err = json.Unmarshal(body, adminCoresStatus)
 	if err != nil {
@@ -264,6 +268,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for core, metrics := range adminCoresStatus.Status {
+		if solrExcludedCoreString != "" && regexExludedCore.MatchString(core) {
+			continue
+		}
 		e.gaugeAdmin["num_docs"].WithLabelValues(core).Set(float64(metrics.Index.NumDocs))
 		e.gaugeAdmin["size_in_bytes"].WithLabelValues(core).Set(float64(metrics.Index.SizeInBytes))
 		e.gaugeAdmin["deleted_docs"].WithLabelValues(core).Set(float64(metrics.Index.DeletedDocs))
@@ -273,6 +280,9 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	cores := getCoresFromStatus(adminCoresStatus)
 
 	for _, coreName := range cores {
+		if solrExcludedCoreString != "" && regexExludedCore.MatchString(coreName) {
+			continue
+		}
 		mBeansUrl := fmt.Sprintf(e.MbeansUrl, coreName)
 		resp, err := e.client.Get(mBeansUrl)
 		if err != nil {

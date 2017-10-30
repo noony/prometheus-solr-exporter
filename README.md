@@ -29,6 +29,7 @@ prometheus-solr-exporter --help
 | solr.context-path     | Solr webapp context path. (default "/solr") |
 | solr.pid-file         | Path to Solr pid file |
 | solr.timeout          | Timeout for trying to get stats from Solr. (default 5s) |
+| solr.excluded-core    | Regex to exclude core from monitoring|
 | web.listen-address    | Address to listen on for web interface and telemetry. (default ":9231")|
 | web.telemetry-path    | Path under which to expose metrics. (default "/metrics")|
 
