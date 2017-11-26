@@ -14,6 +14,7 @@ https://github.com/noony/prometheus-solr-exporter
 
 ```bash
 docker pull noony/prometheus-solr-exporter
+docker run noony/prometheus-solr-exporter --solr.address=http://url-to-solr:port
 ```
 
 #### Configuration
@@ -36,6 +37,7 @@ prometheus-solr-exporter --help
 
 ### Building
 
+Clone the repository and just launch this command
 ```bash
 make build
 ```
