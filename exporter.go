@@ -109,11 +109,12 @@ type Exporter struct {
 	gaugeUpdate map[string]*prometheus.GaugeVec
 	gaugeCache  map[string]*prometheus.GaugeVec
 
-	client *http.Client
+	client      *http.Client
+	ignoreCores []string
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, solrExcludedCore string) *Exporter {
+func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, solrExcludedCore string, ignoreCores string) *Exporter {
 	gaugeAdmin := make(map[string]*prometheus.GaugeVec, len(gaugeAdminMetrics))
 	gaugeCore := make(map[string]*prometheus.GaugeVec, len(gaugeCoreMetrics))
 	gaugeQuery := make(map[string]*prometheus.GaugeVec, len(gaugeQueryMetrics))
@@ -161,7 +162,10 @@ func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, 
 
 	mbeansUrl := fmt.Sprintf("%s%s/%s%s", solrURI, solrContextPath, "%s", mbeansPath)
 	adminCoreUrl := fmt.Sprintf("%s%s%s", solrURI, solrContextPath, adminCoresPath)
-
+	ignoreCoreList := make([]string, 0)
+	if ignoreCores != "" {
+		ignoreCoreList = strings.Split(ignoreCores, ",")
+	}
 	// Init our exporter.
 	return &Exporter{
 		MbeansUrl:    mbeansUrl,
@@ -193,6 +197,7 @@ func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, 
 				},
 			},
 		},
+		ignoreCores: ignoreCoreList,
 	}
 }
 
@@ -266,9 +271,19 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		log.Errorf("Failed to unmarshal solr admin JSON into struct: %v", err)
 		return
 	}
-
+	dontFetch := false
 	for core, metrics := range adminCoresStatus.Status {
 		if solrExcludedCoreString != "" && regexExludedCore.MatchString(core) {
+			continue
+		}
+		dontFetch = false
+		for _, ignoreCore := range e.ignoreCores {
+			if ignoreCore == core {
+				dontFetch = true
+				break
+			}
+		}
+		if dontFetch {
 			continue
 		}
 		e.gaugeAdmin["num_docs"].WithLabelValues(core).Set(float64(metrics.Index.NumDocs))
@@ -281,6 +296,16 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	for _, coreName := range cores {
 		if solrExcludedCoreString != "" && regexExludedCore.MatchString(coreName) {
+			continue
+		}
+		dontFetch = false
+		for _, ignoreCore := range e.ignoreCores {
+			if ignoreCore == coreName {
+				dontFetch = true
+				break
+			}
+		}
+		if dontFetch {
 			continue
 		}
 		mBeansUrl := fmt.Sprintf(e.MbeansUrl, coreName)
