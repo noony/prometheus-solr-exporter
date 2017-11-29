@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -34,6 +35,7 @@ var (
 	solrExcludedCore = kingpin.Flag("solr.excluded-core", "Regex to exclude core from monitoring").Default("").String()
 	solrTimeout      = kingpin.Flag("solr.timeout", "Timeout for trying to get stats from Solr.").Default("5s").Duration()
 	solrPidFile      = kingpin.Flag("solr.pid-file", "").Default(pidFileHelpText).String()
+	ignoreCore       = kingpin.Flag("solr.ignore-core", "comma-separated list of cores to ignore").Default("").String()
 )
 
 var landingPage = []byte(`<html>
@@ -54,9 +56,10 @@ func main() {
 	log.Infoln("Starting solr_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	exporter := NewExporter(*solrURI, *solrContextPath, *solrTimeout, *solrExcludedCore)
-	prometheus.MustRegister(exporter)
-	prometheus.MustRegister(version.NewCollector("solr_exporter"))
+	exporter := NewExporter(*solrURI, *solrContextPath, *solrTimeout, *solrExcludedCore, *ignoreCore)
+	registry := prometheus.NewRegistry()
+	registry.Register(exporter)
+	registry.Register(version.NewCollector("solr_exporter"))
 
 	if *solrPidFile != "" {
 		procExporter := prometheus.NewProcessCollectorPIDFn(
@@ -71,11 +74,11 @@ func main() {
 				}
 				return value, nil
 			}, "solr")
-		prometheus.MustRegister(procExporter)
+		registry.Register(procExporter)
 	}
 
 	log.Infoln("Listening on", *listenAddress)
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(*metricsPath, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(landingPage)
 	})
