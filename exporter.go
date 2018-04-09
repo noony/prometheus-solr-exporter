@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -109,11 +108,11 @@ type Exporter struct {
 	gaugeUpdate map[string]*prometheus.GaugeVec
 	gaugeCache  map[string]*prometheus.GaugeVec
 
-	client *http.Client
+	client http.Client
 }
 
 // NewExporter returns an initialized Exporter.
-func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, solrExcludedCore string) *Exporter {
+func NewExporter(solrBaseURL string, timeout time.Duration, solrExcludedCore string, client http.Client) *Exporter {
 	gaugeAdmin := make(map[string]*prometheus.GaugeVec, len(gaugeAdminMetrics))
 	gaugeCore := make(map[string]*prometheus.GaugeVec, len(gaugeCoreMetrics))
 	gaugeQuery := make(map[string]*prometheus.GaugeVec, len(gaugeQueryMetrics))
@@ -159,13 +158,13 @@ func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, 
 		}, []string{"core", "handler", "class"})
 	}
 
-	mbeansUrl := fmt.Sprintf("%s%s/%s%s", solrURI, solrContextPath, "%s", mbeansPath)
-	adminCoreUrl := fmt.Sprintf("%s%s%s", solrURI, solrContextPath, adminCoresPath)
+	mbeansURL := fmt.Sprintf("%s%s%s", solrBaseURL, "%s", mbeansPath)
+	adminCoreURL := fmt.Sprintf("%s%s", solrBaseURL, adminCoresPath)
 
 	// Init our exporter.
 	return &Exporter{
-		MbeansUrl:    mbeansUrl,
-		AdminCoreUrl: adminCoreUrl,
+		MbeansUrl:    mbeansURL,
+		AdminCoreUrl: adminCoreURL,
 
 		up: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
@@ -179,20 +178,7 @@ func NewExporter(solrURI string, solrContextPath string, timeout time.Duration, 
 		gaugeUpdate: gaugeUpdate,
 		gaugeCache:  gaugeCache,
 
-		client: &http.Client{
-			Transport: &http.Transport{
-				Dial: func(netw, addr string) (net.Conn, error) {
-					c, err := net.DialTimeout(netw, addr, timeout)
-					if err != nil {
-						return nil, err
-					}
-					if err := c.SetDeadline(time.Now().Add(timeout)); err != nil {
-						return nil, err
-					}
-					return c, nil
-				},
-			},
-		},
+		client: client,
 	}
 }
 
@@ -283,7 +269,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		if solrExcludedCoreString != "" && regexExludedCore.MatchString(coreName) {
 			continue
 		}
-		mBeansUrl := fmt.Sprintf(e.MbeansUrl, coreName)
+		mBeansUrl := fmt.Sprintf(e.MbeansUrl, "/"+coreName)
 		resp, err := e.client.Get(mBeansUrl)
 		if err != nil {
 			log.Errorf("Error while querying Solr for mbeans stats: %v", err)

@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
@@ -54,9 +56,32 @@ func main() {
 	log.Infoln("Starting solr_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())
 
-	exporter := NewExporter(*solrURI, *solrContextPath, *solrTimeout, *solrExcludedCore)
+	client := &http.Client{
+		Transport: &http.Transport{
+			Dial: func(netw, addr string) (net.Conn, error) {
+				c, err := net.DialTimeout(netw, addr, *solrTimeout)
+				if err != nil {
+					return nil, err
+				}
+				if err := c.SetDeadline(time.Now().Add(*solrTimeout)); err != nil {
+					return nil, err
+				}
+				return c, nil
+			},
+		},
+	}
+
+	solrBaseURL := fmt.Sprintf("%s%s", *solrURI, *solrContextPath)
+
+	exporter := NewExporter(solrBaseURL, *solrTimeout, *solrExcludedCore, *client)
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(version.NewCollector("solr_exporter"))
+
+	jvmExporter, err := NewJVMCollector(*client, solrBaseURL)
+	if err != nil {
+		log.Errorf("Failed to create JVM metrics collector: %v", err)
+	}
+	prometheus.MustRegister(jvmExporter)
 
 	if *solrPidFile != "" {
 		procExporter := prometheus.NewProcessCollectorPIDFn(
