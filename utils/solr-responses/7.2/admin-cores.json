@@ -1,0 +1,29 @@
+{
+  "responseHeader":{
+    "status":0,
+    "QTime":1},
+  "initFailures":{},
+  "status":{
+    "gettingstarted":{
+      "name":"gettingstarted",
+      "instanceDir":"/opt/solr/server/solr/gettingstarted",
+      "dataDir":"/opt/solr/server/solr/gettingstarted/data/",
+      "config":"solrconfig.xml",
+      "schema":"managed-schema",
+      "startTime":"2018-04-17T08:26:02.321Z",
+      "uptime":7162,
+      "index":{
+        "numDocs":0,
+        "maxDoc":0,
+        "deletedDocs":0,
+        "indexHeapUsageBytes":0,
+        "version":2,
+        "segmentCount":0,
+        "current":true,
+        "hasDeletions":false,
+        "directory":"org.apache.lucene.store.NRTCachingDirectory:NRTCachingDirectory(MMapDirectory@/opt/solr/server/solr/gettingstarted/data/index lockFactory=org.apache.lucene.store.NativeFSLockFactory@1fcee8; maxCacheMB=48.0 maxMergeSizeMB=4.0)",
+        "segmentsFile":"segments_1",
+        "segmentsFileSizeInBytes":69,
+        "userData":{},
+        "sizeInBytes":69,
+        "size":"69 bytes"}}}}
