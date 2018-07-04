@@ -94,3 +94,51 @@ type Cache struct {
 		WarmupTime          int         `json:"warmupTime"`
 	} `json:"stats"`
 }
+
+type JVMStatus struct {
+	Metrics struct {
+		JVM struct {
+			GCConcurrentMarkSweepCount int64 `json:"gc.ConcurrentMarkSweep.count"`
+			GCConcurrentMarkSweepTime  int64 `json:"gc.ConcurrentMarkSweep.time"`
+			GCParNewCount              int64 `json:"gc.ParNew.count"`
+			GCParNewTime               int64 `json:"gc.ParNew.time"`
+
+			MemoryHeapCommitted int64   `json:"memory.heap.committed"`
+			MemoryHeapInit      int64   `json:"memory.heap.init"`
+			MemoryHeapMax       int64   `json:"memory.heap.max"`
+			MemoryHeapUsage     float64 `json:"memory.heap.usage"`
+			MemoryHeapUsed      int64   `json:"memory.heap.used"`
+
+			MemoryNonHeapCommitted int64   `json:"memory.non-heap.committed"`
+			MemoryNonHeapInit      int64   `json:"memory.non-heap.init"`
+			MemoryNonHeapMax       int64   `json:"memory.non-heap.max"`
+			MemoryNonHeapUsage     float64 `json:"memory.non-heap.usage"`
+			MemoryNonHeapUsed      int64   `json:"memory.non-heap.used"`
+
+			MemoryTotalCommitted int64 `json:"memory.total.committed"`
+			MemoryTotalInit      int64 `json:"memory.total.init"`
+			MemoryTotalMax       int64 `json:"memory.total.max"`
+			MemoryTotalUsed      int64 `json:"memory.total.used"`
+
+			OSAvailableProcessors        int64   `json:"os.availableProcessors"`
+			OSCommittedVirtualMemorySize int64   `json:"os.committedVirtualMemorySize"`
+			OSFreePhysicalMemorySize     int64   `json:"os.freePhysicalMemorySize"`
+			OSFreeSwapSpaceSize          int64   `json:"os.freeSwapSpaceSize"`
+			OSMaxFileDescriptorCount     int64   `json:"os.maxFileDescriptorCount"`
+			OSOpenFileDescriptorCount    int64   `json:"os.openFileDescriptorCount"`
+			OSProcessCPUTime             int64   `json:"os.processCpuTime"`
+			OSSystemLoadAverage          float64 `json:"os.systemLoadAverage"`
+			OSTotalPhysicalMemorySize    int64   `json:"os.totalPhysicalMemorySize"`
+			OSTotalSwapSapceSize         int64   `json:"os.totalSwapSpaceSize"`
+
+			ThreadsBlockedCount      int64 `json:"threads.blocked.count"`
+			ThreadsDaemonCount       int64 `json:"threads.daemon.count"`
+			ThreadsDeadlockCount     int64 `json:"threads.deadlock.count"`
+			ThreadsNewCount          int64 `json:"threads.new.count"`
+			ThreadsRunnableCount     int64 `json:"threads.runnable.count"`
+			ThreadsTerminatedCount   int64 `json:"threads.terminated.count"`
+			ThreadsTimedWaitingCount int64 `json:"threads.timed_waiting.count"`
+			ThreadsWaitingCount      int64 `json:"threads.waiting.count"`
+		} `json:"solr.jvm"`
+	} `json:"metrics"`
+}
