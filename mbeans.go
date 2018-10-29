@@ -106,6 +106,12 @@ func processMbeans(e *Exporter, coreName string, data io.Reader) []error {
 	// Try to decode solr > v5 cache metrics
 	cacheData := findMBeansData(mBeansData.SolrMbeans, "CACHE")
 	b = bytes.Replace(cacheData, []byte(":\"NaN\""), []byte(":0.0"), -1)
+	b = bytes.Replace(b, []byte("CACHE.searcher.perSegFilter."), []byte(""), -1)
+	b = bytes.Replace(b, []byte("CACHE.searcher.queryResultCache."), []byte(""), -1)
+	b = bytes.Replace(b, []byte("CACHE.searcher.fieldValueCache."), []byte(""), -1)
+	b = bytes.Replace(b, []byte("CACHE.searcher.filterCache."), []byte(""), -1)
+	b = bytes.Replace(b, []byte("CACHE.searcher.documentCache."), []byte(""), -1)
+	fmt.Println(string(b))
 
 	// mbeans metric names change in Solr 7+
 	mbeanerrs := handleCacheMbeanslt7(b, e, coreName)
@@ -122,7 +128,7 @@ func handleCacheMbeanslt7(data []byte, e *Exporter, coreName string) []error {
 		errors = append(errors, fmt.Errorf("Failed to unmarshal mbeans cache metrics JSON into struct (core : %s): %v, json : %s", coreName, err, data))
 	} else {
 		for name, metrics := range cacheMetrics {
-			if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" {
+			if metrics.Class == "org.apache.solr.search.SolrFieldCacheMBean" || metrics.Class == "org.apache.solr.search.SolrFieldCacheBean" {
 				continue
 			}
 			hitratio, err := strconv.ParseFloat(string(metrics.Stats.Hitratio), 64)
