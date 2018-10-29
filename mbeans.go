@@ -129,12 +129,12 @@ func handleCacheMbeanslt7(data []byte, e *Exporter, coreName string) []error {
 			if err != nil {
 				errors = append(errors, fmt.Errorf("Fail to convert Hitratio in float: %v", err))
 			}
-			cumulative_hitratio, err := strconv.ParseFloat(string(metrics.Stats.CumulativeHitratio), 64)
+			cumulativeHitratio, err := strconv.ParseFloat(string(metrics.Stats.CumulativeHitratio), 64)
 			if err != nil {
 				errors = append(errors, fmt.Errorf("Fail to convert Cumulative Hitratio in float: %v", err))
 			}
 			e.gaugeCache["cumulative_evictions"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeEvictions))
-			e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(cumulative_hitratio)
+			e.gaugeCache["cumulative_hitratio"].WithLabelValues(coreName, name, metrics.Class).Set(cumulativeHitratio)
 			e.gaugeCache["cumulative_hits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeHits))
 			e.gaugeCache["cumulative_inserts"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeInserts))
 			e.gaugeCache["cumulative_lookups"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.CumulativeLookups))

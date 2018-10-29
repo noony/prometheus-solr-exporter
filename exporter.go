@@ -93,8 +93,8 @@ func getCoresFromStatus(adminCoresStatus *AdminCoresStatus) []string {
 // Exporter collects Solr stats from the given server and exports
 // them using the prometheus metrics package.
 type Exporter struct {
-	MbeansUrl    string
-	AdminCoreUrl string
+	mBeansURL    string
+	AdminCoreURL string
 	mutex        sync.RWMutex
 
 	up prometheus.Gauge
@@ -155,13 +155,13 @@ func NewExporter(solrBaseURL string, timeout time.Duration, solrExcludedCore str
 		}, []string{"core", "handler", "class"})
 	}
 
-	mbeansURL := fmt.Sprintf("%s%s%s", solrBaseURL, "%s", mbeansPath)
-	adminCoreURL := fmt.Sprintf("%s%s", solrBaseURL, adminCoresPath)
+	mBeansURL := fmt.Sprintf("%s%s%s", solrBaseURL, "%s", mbeansPath)
+	AdminCoreURL := fmt.Sprintf("%s%s", solrBaseURL, adminCoresPath)
 
 	// Init our exporter.
 	return &Exporter{
-		MbeansUrl:    mbeansURL,
-		AdminCoreUrl: adminCoreURL,
+		mBeansURL:    mBeansURL,
+		AdminCoreURL: AdminCoreURL,
 
 		up: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
@@ -227,7 +227,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	e.up.Set(0)
 	defer func() { ch <- e.up }()
 
-	resp, err := e.client.Get(e.AdminCoreUrl)
+	resp, err := e.client.Get(e.AdminCoreURL)
 	if err != nil {
 		log.Errorf("Error while querying Solr for admin stats: %v", err)
 		return
@@ -266,8 +266,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		if solrExcludedCoreString != "" && regexExludedCore.MatchString(coreName) {
 			continue
 		}
-		mBeansUrl := fmt.Sprintf(e.MbeansUrl, "/"+coreName)
-		resp, err := e.client.Get(mBeansUrl)
+		mBeansURL := fmt.Sprintf(e.mBeansURL, "/"+coreName)
+		resp, err := e.client.Get(mBeansURL)
 		if err != nil {
 			log.Errorf("Error while querying Solr for mbeans stats: %v", err)
 			return
@@ -276,7 +276,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 		if resp.StatusCode != http.StatusOK {
 			log.Errorf("solr: API responded with status-code %d, expected %d, url %s",
-				resp.StatusCode, http.StatusOK, mBeansUrl)
+				resp.StatusCode, http.StatusOK, mBeansURL)
 			return
 		}
 
@@ -309,7 +309,7 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func findMBeansData(mBeansData []json.RawMessage, query string) json.RawMessage {
 	var decoded string
-	for i := 0; i < len(mBeansData); i += 1 {
+	for i := 0; i < len(mBeansData); i++ {
 		err := json.Unmarshal(mBeansData[i], &decoded)
 		if err == nil {
 			if decoded == query || decoded == query+"HANDLER" {

@@ -12,15 +12,15 @@ import (
 	"time"
 )
 
-type solrVersionJson struct {
+type solrVersionJSON struct {
 	version string
 	json    io.Reader
 }
 
 var solrResponseDir = "utils/solr-responses"
 
-func loadAllMbeans() ([]solrVersionJson, error) {
-	mbeans := []solrVersionJson{}
+func loadAllMbeans() ([]solrVersionJSON, error) {
+	mbeans := []solrVersionJSON{}
 	solrVersions, err := ioutil.ReadDir(solrResponseDir)
 	if err != nil {
 		return mbeans, fmt.Errorf("failed to list solr versions")
@@ -35,7 +35,7 @@ func loadAllMbeans() ([]solrVersionJson, error) {
 		if err != nil {
 			return nil, fmt.Errorf("Failed to open file %s", fi.Name())
 		}
-		mbeans = append(mbeans, solrVersionJson{sv.Name(), file})
+		mbeans = append(mbeans, solrVersionJSON{sv.Name(), file})
 
 	}
 	return mbeans, nil
