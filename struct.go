@@ -142,3 +142,129 @@ type JVMStatus struct {
 		} `json:"solr.jvm"`
 	} `json:"metrics"`
 }
+
+type JVMStatusV6 struct {
+	Metrics struct {
+		JVM struct {
+			GCConcurrentMarkSweepCount struct {
+				Value int64 `json:"value"`
+			} `json:"gc.ConcurrentMarkSweep.count"`
+			GCConcurrentMarkSweepTime struct {
+				Value int64 `json:"value"`
+			} `json:"gc.ConcurrentMarkSweep.time"`
+			GCParNewCount struct {
+				Value int64 `json:"value"`
+			} `json:"gc.ParNew.count"`
+			GCParNewTime struct {
+				Value int64 `json:"value"`
+			} `json:"gc.ParNew.time"`
+
+			MemoryHeapCommitted struct {
+				Value int64 `json:"value"`
+			} `json:"memory.heap.committed"`
+			MemoryHeapInit struct {
+				Value int64 `json:"value"`
+			} `json:"memory.heap.init"`
+			MemoryHeapMax struct {
+				Value int64 `json:"value"`
+			} `json:"memory.heap.max"`
+			MemoryHeapUsage struct {
+				Value float64 `json:"value"`
+			} `json:"memory.heap.usage"`
+			MemoryHeapUsed struct {
+				Value int64 `json:"value"`
+			} `json:"memory.heap.used"`
+
+			MemoryNonHeapCommitted struct {
+				Value int64 `json:"value"`
+			} `json:"memory.non-heap.committed"`
+			MemoryNonHeapInit struct {
+				Value int64 `json:"value"`
+			} `json:"memory.non-heap.init"`
+			MemoryNonHeapMax struct {
+				Value int64 `json:"value"`
+			} `json:"memory.non-heap.max"`
+			MemoryNonHeapUsage struct {
+				Value float64 `json:"value"`
+			} `json:"memory.non-heap.usage"`
+			MemoryNonHeapUsed struct {
+				Value int64 `json:"value"`
+			} `json:"memory.non-heap.used"`
+
+			MemoryTotalCommitted struct {
+				Value int64 `json:"value"`
+			} `json:"memory.total.committed"`
+			MemoryTotalInit struct {
+				Value int64 `json:"value"`
+			} `json:"memory.total.init"`
+			MemoryTotalMax struct {
+				Value int64 `json:"value"`
+			} `json:"memory.total.max"`
+			MemoryTotalUsed struct {
+				Value int64 `json:"value"`
+			} `json:"memory.total.used"`
+
+			OSAvailableProcessors struct {
+				Value int64 `json:"value"`
+			} `json:"os.availableProcessors"`
+			OSCommittedVirtualMemorySize struct {
+				Value int64 `json:"value"`
+			} `json:"os.committedVirtualMemorySize"`
+			OSFreePhysicalMemorySize struct {
+				Value int64 `json:"value"`
+			} `json:"os.freePhysicalMemorySize"`
+			OSFreeSwapSpaceSize struct {
+				Value int64 `json:"value"`
+			} `json:"os.freeSwapSpaceSize"`
+			OSMaxFileDescriptorCount struct {
+				Value int64 `json:"value"`
+			} `json:"os.maxFileDescriptorCount"`
+			OSOpenFileDescriptorCount struct {
+				Value int64 `json:"value"`
+			} `json:"os.openFileDescriptorCount"`
+			OSProcessCPUTime struct {
+				Value int64 `json:"value"`
+			} `json:"os.processCpuTime"`
+			OSSystemLoadAverage struct {
+				Value float64 `json:"value"`
+			} `json:"os.systemLoadAverage"`
+			OSTotalPhysicalMemorySize struct {
+				Value int64 `json:"value"`
+			} `json:"os.totalPhysicalMemorySize"`
+			OSTotalSwapSapceSize struct {
+				Value int64 `json:"value"`
+			} `json:"os.totalSwapSpaceSize"`
+
+			ThreadsBlockedCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.blocked.count"`
+			ThreadsDaemonCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.daemon.count"`
+			ThreadsDeadlockCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.deadlock.count"`
+			ThreadsNewCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.new.count"`
+			ThreadsRunnableCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.runnable.count"`
+			ThreadsTerminatedCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.terminated.count"`
+			ThreadsTimedWaitingCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.timed_waiting.count"`
+			ThreadsWaitingCount struct {
+				Value int64 `json:"value"`
+			} `json:"threads.waiting.count"`
+		} `json:"solr.jvm"`
+	} `json:"metrics"`
+}
+
+type InfoSystem struct {
+	Lucene struct {
+		SolrVersion string `json:"solr-spec-version"`
+	} `json:"lucene"`
+}

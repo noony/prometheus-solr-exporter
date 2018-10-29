@@ -12,7 +12,6 @@ promu crossbuild tarballs
 promu checksum .tarballs
 promu release .tarballs
 
-
 rm solr_exporter
 ln -s .build/linux-amd64/solr_exporter solr_exporter
 

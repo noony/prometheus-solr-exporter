@@ -111,7 +111,6 @@ func processMbeans(e *Exporter, coreName string, data io.Reader) []error {
 	b = bytes.Replace(b, []byte("CACHE.searcher.fieldValueCache."), []byte(""), -1)
 	b = bytes.Replace(b, []byte("CACHE.searcher.filterCache."), []byte(""), -1)
 	b = bytes.Replace(b, []byte("CACHE.searcher.documentCache."), []byte(""), -1)
-	fmt.Println(string(b))
 
 	// mbeans metric names change in Solr 7+
 	mbeanerrs := handleCacheMbeanslt7(b, e, coreName)

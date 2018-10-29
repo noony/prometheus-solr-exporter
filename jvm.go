@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/blang/semver"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
 
 var jvmPath = "/admin/metrics?group=jvm&wt=json"
+var solrInfoPath = "/admin/info/system?wt=json"
 
 //JVMCollector collects JVM type metrics from solr
 type JVMCollector struct {
@@ -56,13 +58,15 @@ type JVMCollector struct {
 	threadsTimedWaitingCount *prometheus.Desc
 	threadsWaitingCount      *prometheus.Desc
 
-	client http.Client
-	jvmURL string
+	client      http.Client
+	jvmURL      string
+	solrInfoURL string
 }
 
 // NewJVMCollector returns a new Collector exposing solr jvm statistics.
 func NewJVMCollector(client http.Client, solrBaseURL string) (*JVMCollector, error) {
 	jvmURL := fmt.Sprintf("%s%s", solrBaseURL, jvmPath)
+	solrInfoURL := fmt.Sprintf("%s%s", solrBaseURL, solrInfoPath)
 	return &JVMCollector{
 		gcConcurrentMarkSweepCount: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "jvm", "gc_concurrentmarksweep_count"),
@@ -284,73 +288,152 @@ func NewJVMCollector(client http.Client, solrBaseURL string) (*JVMCollector, err
 			[]string{},
 			nil,
 		),
-		client: client,
-		jvmURL: jvmURL,
+		client:      client,
+		jvmURL:      jvmURL,
+		solrInfoURL: solrInfoURL,
 	}, nil
 }
 
 // Update exposes jvm related metrics from solr.
 func (c *JVMCollector) Update(ch chan<- prometheus.Metric) error {
-	resp, err := c.client.Get(c.jvmURL)
+	resp, err := c.client.Get(c.solrInfoURL)
 	if err != nil {
-		return fmt.Errorf("Error while querying Solr for jvm stats: %v", err)
+		return fmt.Errorf("Error while querying Solr for infos : %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Failed to read jvm stats response body: %v", err)
-
+		return fmt.Errorf("Failed to read infos response body: %v", err)
 	}
 
-	jvmStatus := &JVMStatus{}
-	err = json.Unmarshal(body, jvmStatus)
+	infoSystem := &InfoSystem{}
+	err = json.Unmarshal(body, infoSystem)
 	if err != nil {
-		return fmt.Errorf("Failed to unmarshal solr jvm JSON into struct: %v", err)
-
+		return fmt.Errorf("Failed to unmarshal solr infos JSON into struct: %v", err)
 	}
 
-	ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepCount))
-	ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepTime))
-	ch <- prometheus.MustNewConstMetric(c.gcParNewCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewCount))
-	ch <- prometheus.MustNewConstMetric(c.gcParNewTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewTime))
+	semanticVersion, err := semver.Make(infoSystem.Lucene.SolrVersion)
+	if err != nil {
+		return fmt.Errorf("Error parsing version string: %v", err)
+	}
+	semanticVersionSolr6, err := semver.Make("6.0.0")
+	semanticVersionSolr7, err := semver.Make("7.0.0")
+	// No jvm stats for solr < 6
+	if semanticVersion.LT(semanticVersionSolr6) {
+		return nil
+	}
 
-	ch <- prometheus.MustNewConstMetric(c.memoryHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapCommitted))
-	ch <- prometheus.MustNewConstMetric(c.memoryHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapInit))
-	ch <- prometheus.MustNewConstMetric(c.memoryHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapMax))
-	ch <- prometheus.MustNewConstMetric(c.memoryHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsage))
-	ch <- prometheus.MustNewConstMetric(c.memoryHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsed))
+	resp, err = c.client.Get(c.jvmURL)
+	if err != nil {
+		return fmt.Errorf("Error while querying Solr for jvm stats: %v", err)
+	}
+	defer resp.Body.Close()
 
-	ch <- prometheus.MustNewConstMetric(c.memoryNonHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapCommitted))
-	ch <- prometheus.MustNewConstMetric(c.memoryNonHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapInit))
-	ch <- prometheus.MustNewConstMetric(c.memoryNonHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapMax))
-	ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsage))
-	ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsed))
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("Failed to read jvm stats response body: %v", err)
+	}
+	if semanticVersion.LT(semanticVersionSolr7) == true {
+		jvmStatus := &JVMStatusV6{}
+		err = json.Unmarshal(body, jvmStatus)
 
-	ch <- prometheus.MustNewConstMetric(c.memoryTotalCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalCommitted))
-	ch <- prometheus.MustNewConstMetric(c.memoryTotalInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalInit))
-	ch <- prometheus.MustNewConstMetric(c.memoryTotalMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalMax))
-	ch <- prometheus.MustNewConstMetric(c.memoryTotalUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalUsed))
+		if err != nil {
+			return fmt.Errorf("Failed to unmarshal solr jvm JSON into struct: %v", err)
+		}
 
-	ch <- prometheus.MustNewConstMetric(c.osAvailableProcessors, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSAvailableProcessors))
-	ch <- prometheus.MustNewConstMetric(c.osCommittedVirtualMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSCommittedVirtualMemorySize))
-	ch <- prometheus.MustNewConstMetric(c.osFreePhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreePhysicalMemorySize))
-	ch <- prometheus.MustNewConstMetric(c.osFreeSwapSpaceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreeSwapSpaceSize))
-	ch <- prometheus.MustNewConstMetric(c.osMaxFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSMaxFileDescriptorCount))
-	ch <- prometheus.MustNewConstMetric(c.osOpenFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSOpenFileDescriptorCount))
-	ch <- prometheus.MustNewConstMetric(c.osProcessCPUTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.OSProcessCPUTime))
-	ch <- prometheus.MustNewConstMetric(c.osSystemLoadAverage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSSystemLoadAverage))
-	ch <- prometheus.MustNewConstMetric(c.osTotalPhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalPhysicalMemorySize))
-	ch <- prometheus.MustNewConstMetric(c.osTotalSwapSapceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalSwapSapceSize))
+		ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepTime.Value))
+		ch <- prometheus.MustNewConstMetric(c.gcParNewCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.gcParNewTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewTime.Value))
 
-	ch <- prometheus.MustNewConstMetric(c.threadsBlockedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsBlockedCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsDaemonCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDaemonCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsDeadlockCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDeadlockCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsNewCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsNewCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsRunnableCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsRunnableCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsTerminatedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTerminatedCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsTimedWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTimedWaitingCount))
-	ch <- prometheus.MustNewConstMetric(c.threadsWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsWaitingCount))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapCommitted.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapInit.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapMax.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsage.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsed.Value))
+
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapCommitted.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapInit.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapMax.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsage.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsed.Value))
+
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalCommitted.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalInit.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalMax.Value))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalUsed.Value))
+
+		ch <- prometheus.MustNewConstMetric(c.osAvailableProcessors, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSAvailableProcessors.Value))
+		ch <- prometheus.MustNewConstMetric(c.osCommittedVirtualMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSCommittedVirtualMemorySize.Value))
+		ch <- prometheus.MustNewConstMetric(c.osFreePhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreePhysicalMemorySize.Value))
+		ch <- prometheus.MustNewConstMetric(c.osFreeSwapSpaceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreeSwapSpaceSize.Value))
+		ch <- prometheus.MustNewConstMetric(c.osMaxFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSMaxFileDescriptorCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.osOpenFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSOpenFileDescriptorCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.osProcessCPUTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.OSProcessCPUTime.Value))
+		ch <- prometheus.MustNewConstMetric(c.osSystemLoadAverage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSSystemLoadAverage.Value))
+		ch <- prometheus.MustNewConstMetric(c.osTotalPhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalPhysicalMemorySize.Value))
+		ch <- prometheus.MustNewConstMetric(c.osTotalSwapSapceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalSwapSapceSize.Value))
+
+		ch <- prometheus.MustNewConstMetric(c.threadsBlockedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsBlockedCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsDaemonCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDaemonCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsDeadlockCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDeadlockCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsNewCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsNewCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsRunnableCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsRunnableCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsTerminatedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTerminatedCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsTimedWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTimedWaitingCount.Value))
+		ch <- prometheus.MustNewConstMetric(c.threadsWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsWaitingCount.Value))
+	} else {
+		jvmStatusStruct := &JVMStatus{}
+		err = json.Unmarshal(body, jvmStatusStruct)
+		jvmStatus := jvmStatusStruct
+
+		if err != nil {
+			return fmt.Errorf("Failed to unmarshal solr jvm JSON into struct: %v", err)
+		}
+
+		ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepCount))
+		ch <- prometheus.MustNewConstMetric(c.gcConcurrentMarkSweepTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCConcurrentMarkSweepTime))
+		ch <- prometheus.MustNewConstMetric(c.gcParNewCount, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewCount))
+		ch <- prometheus.MustNewConstMetric(c.gcParNewTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.GCParNewTime))
+
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapCommitted))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapInit))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapMax))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsage))
+		ch <- prometheus.MustNewConstMetric(c.memoryHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryHeapUsed))
+
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapCommitted))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapInit))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapMax))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsage))
+		ch <- prometheus.MustNewConstMetric(c.memoryNonHeapUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryNonHeapUsed))
+
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalCommitted, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalCommitted))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalInit, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalInit))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalMax, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalMax))
+		ch <- prometheus.MustNewConstMetric(c.memoryTotalUsed, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.MemoryTotalUsed))
+
+		ch <- prometheus.MustNewConstMetric(c.osAvailableProcessors, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSAvailableProcessors))
+		ch <- prometheus.MustNewConstMetric(c.osCommittedVirtualMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSCommittedVirtualMemorySize))
+		ch <- prometheus.MustNewConstMetric(c.osFreePhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreePhysicalMemorySize))
+		ch <- prometheus.MustNewConstMetric(c.osFreeSwapSpaceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSFreeSwapSpaceSize))
+		ch <- prometheus.MustNewConstMetric(c.osMaxFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSMaxFileDescriptorCount))
+		ch <- prometheus.MustNewConstMetric(c.osOpenFileDescriptorCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSOpenFileDescriptorCount))
+		ch <- prometheus.MustNewConstMetric(c.osProcessCPUTime, prometheus.CounterValue, float64(jvmStatus.Metrics.JVM.OSProcessCPUTime))
+		ch <- prometheus.MustNewConstMetric(c.osSystemLoadAverage, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSSystemLoadAverage))
+		ch <- prometheus.MustNewConstMetric(c.osTotalPhysicalMemorySize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalPhysicalMemorySize))
+		ch <- prometheus.MustNewConstMetric(c.osTotalSwapSapceSize, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.OSTotalSwapSapceSize))
+
+		ch <- prometheus.MustNewConstMetric(c.threadsBlockedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsBlockedCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsDaemonCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDaemonCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsDeadlockCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsDeadlockCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsNewCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsNewCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsRunnableCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsRunnableCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsTerminatedCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTerminatedCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsTimedWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsTimedWaitingCount))
+		ch <- prometheus.MustNewConstMetric(c.threadsWaitingCount, prometheus.GaugeValue, float64(jvmStatus.Metrics.JVM.ThreadsWaitingCount))
+	}
 
 	return nil
 }

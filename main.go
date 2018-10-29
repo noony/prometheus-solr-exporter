@@ -84,8 +84,8 @@ func main() {
 	prometheus.MustRegister(jvmExporter)
 
 	if *solrPidFile != "" {
-		procExporter := prometheus.NewProcessCollectorPIDFn(
-			func() (int, error) {
+		procExporter := prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
+			PidFn: func() (int, error) {
 				content, err := ioutil.ReadFile(*solrPidFile)
 				if err != nil {
 					return 0, fmt.Errorf("Can't read pid file: %s", err)
@@ -95,7 +95,9 @@ func main() {
 					return 0, fmt.Errorf("Can't parse pid file: %s", err)
 				}
 				return value, nil
-			}, "solr")
+			},
+			Namespace: "solr",
+		})
 		prometheus.MustRegister(procExporter)
 	}
 
