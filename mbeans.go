@@ -9,6 +9,20 @@ import (
 	"strings"
 )
 
+func findMBeansData(mBeansData []json.RawMessage, query string) json.RawMessage {
+	var decoded string
+	for i := 0; i < len(mBeansData); i++ {
+		err := json.Unmarshal(mBeansData[i], &decoded)
+		if err == nil {
+			if decoded == query || decoded == query+"HANDLER" {
+				return mBeansData[i+1]
+			}
+		}
+	}
+
+	return nil
+}
+
 func processMbeans(e *Exporter, coreName string, data io.Reader) []error {
 	mBeansData := &MBeansData{}
 	errors := []error{}
@@ -103,7 +117,6 @@ func processMbeans(e *Exporter, coreName string, data io.Reader) []error {
 		e.gaugeUpdate["soft_autocommits"].WithLabelValues(coreName, name, metrics.Class).Set(float64(metrics.Stats.SoftAutocommits))
 	}
 
-	// Try to decode solr > v5 cache metrics
 	cacheData := findMBeansData(mBeansData.SolrMbeans, "CACHE")
 	b = bytes.Replace(cacheData, []byte(":\"NaN\""), []byte(":0.0"), -1)
 	b = bytes.Replace(b, []byte("CACHE.searcher.perSegFilter."), []byte(""), -1)
@@ -111,16 +124,14 @@ func processMbeans(e *Exporter, coreName string, data io.Reader) []error {
 	b = bytes.Replace(b, []byte("CACHE.searcher.fieldValueCache."), []byte(""), -1)
 	b = bytes.Replace(b, []byte("CACHE.searcher.filterCache."), []byte(""), -1)
 	b = bytes.Replace(b, []byte("CACHE.searcher.documentCache."), []byte(""), -1)
-
-	// mbeans metric names change in Solr 7+
-	mbeanerrs := handleCacheMbeanslt7(b, e, coreName)
+	mbeanerrs := handleCacheMbeans(b, e, coreName)
 	for _, e := range mbeanerrs {
 		errors = append(errors, e)
 	}
 	return errors
 }
 
-func handleCacheMbeanslt7(data []byte, e *Exporter, coreName string) []error {
+func handleCacheMbeans(data []byte, e *Exporter, coreName string) []error {
 	var cacheMetrics map[string]Cache
 	var errors = []error{}
 	if err := json.Unmarshal(data, &cacheMetrics); err != nil {

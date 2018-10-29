@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	mbeansPath     = "/admin/mbeans?stats=true&wt=json&cat=CORE&cat=QUERYHANDLER&cat=UPDATEHANDLER&cat=CACHE"
+	mbeansPath     = "/admin/mbeans?stats=true&wt=json&cat=CORE&cat=QUERY&cat=UPDATE&cat=CACHE"
 	adminCoresPath = "/admin/cores?action=STATUS&wt=json"
 )
 
@@ -305,18 +305,4 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 	// Successfully processed stats.
 	e.up.Set(1)
-}
-
-func findMBeansData(mBeansData []json.RawMessage, query string) json.RawMessage {
-	var decoded string
-	for i := 0; i < len(mBeansData); i++ {
-		err := json.Unmarshal(mBeansData[i], &decoded)
-		if err == nil {
-			if decoded == query || decoded == query+"HANDLER" {
-				return mBeansData[i+1]
-			}
-		}
-	}
-
-	return nil
 }
