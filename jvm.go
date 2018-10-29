@@ -162,7 +162,7 @@ func NewJVMCollector(client http.Client, solrBaseURL string) (*JVMCollector, err
 		),
 		memoryTotalInit: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "jvm", "memory_total_init"),
-			"JVM memory total inital bytes.",
+			"JVM memory total initial bytes.",
 			[]string{},
 			nil,
 		),
@@ -187,7 +187,7 @@ func NewJVMCollector(client http.Client, solrBaseURL string) (*JVMCollector, err
 		),
 		osCommittedVirtualMemorySize: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "jvm", "os_committedvirtualmemorysize"),
-			"Operating system commited virtual memory size in bytes.",
+			"Operating system committed virtual memory size in bytes.",
 			[]string{},
 			nil,
 		),
