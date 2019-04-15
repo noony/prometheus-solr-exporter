@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -26,6 +27,7 @@ const (
 	the availability of /proc.
 
 	https://prometheus.io/docs/instrumenting/writing_clientlibs/#process-metrics.`
+	adminCoresPath = "/admin/cores?action=STATUS&wt=json"
 )
 
 var (
@@ -64,15 +66,17 @@ func main() {
 
 	solrBaseURL := fmt.Sprintf("%s%s", *solrURI, *solrContextPath)
 
-	exporter := NewExporter(solrBaseURL, *solrTimeout, *solrExcludedCore, *client)
-	prometheus.MustRegister(exporter)
-	prometheus.MustRegister(version.NewCollector("solr_exporter"))
-
-	jvmExporter, err := NewJVMCollector(*client, solrBaseURL)
+	pingExporter, err := NewPingCollector(*client, solrBaseURL)
 	if err != nil {
-		log.Errorf("Failed to create JVM metrics collector: %v", err)
+		log.Errorf("Failed to create ping metrics collector: %v", err)
 	}
-	prometheus.MustRegister(jvmExporter)
+	prometheus.MustRegister(pingExporter)
+
+	metricsExporter, err := NewMetricsCollector(*client, solrBaseURL)
+	if err != nil {
+		log.Errorf("Failed to create ping metrics collector: %v", err)
+	}
+	prometheus.MustRegister(metricsExporter)
 
 	if *solrPidFile != "" {
 		procExporter := prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{
@@ -104,4 +108,39 @@ func main() {
              </html>`))
 	})
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
+}
+
+func fetchHTTP(client http.Client, url string) ([]byte, error) {
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if !(resp.StatusCode >= 200 && resp.StatusCode < 300) {
+		return nil, fmt.Errorf("HTTP status %d url : %s", resp.StatusCode, url)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read response body: %v", err)
+	}
+	return body, nil
+}
+
+// Return list of cores from solr server
+func getCoreList(client http.Client, solrBaseURL string) ([]string, error) {
+	body, err := fetchHTTP(client, fmt.Sprintf("%s%s", solrBaseURL, adminCoresPath))
+	if err != nil {
+		return nil, fmt.Errorf("Fail to get solr core list JSON into struct: %v", err)
+	}
+	adminCoresName := &AdminCoresName{}
+	err = json.Unmarshal(body, adminCoresName)
+	if err != nil {
+		return nil, fmt.Errorf("Fail to unmarshal solr core list JSON into struct: %v", err)
+	}
+	serverCores := []string{}
+	for _, v := range adminCoresName.Status {
+		serverCores = append(serverCores, v.Name)
+	}
+	return serverCores, nil
 }
