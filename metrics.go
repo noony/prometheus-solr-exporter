@@ -19,40 +19,41 @@ type MetricsCollector struct {
 	jettyRequestsTotal   *prometheus.Desc
 	jettyDispatchesTotal *prometheus.Desc
 
-	coreClientErrorsTotal                 *prometheus.Desc
-	coreErrorsTotal                       *prometheus.Desc
-	coreRequestsTotal                     *prometheus.Desc
-	coreServerErrorsTotal                 *prometheus.Desc
-	coreTimeoutsTotal                     *prometheus.Desc
-	coreTimeSecondsTotal                  *prometheus.Desc
-	coreFieldCacheTotal                   *prometheus.Desc
-	coreHighlighterRequestTotal           *prometheus.Desc
-	coreIndexSizeBytes                    *prometheus.Desc
-	coreReplicationMaster                 *prometheus.Desc
-	coreReplicationSlave                  *prometheus.Desc
-	coreReplicationLastSuccess            *prometheus.Desc
-	coreReplicationLastFail               *prometheus.Desc
-	coreReplicationSuccessCount           *prometheus.Desc
-	coreReplicationFailCount              *prometheus.Desc
-	coreReplicationReplicating            *prometheus.Desc
-	coreSearcherDocuments                 *prometheus.Desc
-	coreUpdateHandlerAdds                 *prometheus.Desc
-	coreUpdateHandlerAddsTotal            *prometheus.Desc
-	coreUpdateHandlerAutoCommitsTotal     *prometheus.Desc
-	coreUpdateHandlerCommitsTotal         *prometheus.Desc
-	coreUpdateHandlerDeletesByID          *prometheus.Desc
-	coreUpdateHandlerDeletesByIDTotal     *prometheus.Desc
-	coreUpdateHandlerDeletesByQuery       *prometheus.Desc
-	coreUpdateHandlerDeletesByQueryTotal  *prometheus.Desc
-	coreUpdateHandlerErrors               *prometheus.Desc
-	coreUpdateHandlerErrorsTotal          *prometheus.Desc
-	coreUpdateHandlerExpungeDeletesTotal  *prometheus.Desc
-	coreUpdateHandlerMergesTotal          *prometheus.Desc
-	coreUpdateHandlerOptimizesTotal       *prometheus.Desc
-	coreUpdateHandlerPendingDocs          *prometheus.Desc
-	coreUpdateHandlerRollbacksTotal       *prometheus.Desc
-	coreUpdateHandlerSoftAutoCommitsTotal *prometheus.Desc
-	coreUpdateHandlerSplitsTotal          *prometheus.Desc
+	coreClientErrorsTotal                   *prometheus.Desc
+	coreErrorsTotal                         *prometheus.Desc
+	coreRequestsTotal                       *prometheus.Desc
+	coreServerErrorsTotal                   *prometheus.Desc
+	coreTimeoutsTotal                       *prometheus.Desc
+	coreTimeSecondsTotal                    *prometheus.Desc
+	coreFieldCacheTotal                     *prometheus.Desc
+	coreHighlighterRequestTotal             *prometheus.Desc
+	coreIndexSizeBytes                      *prometheus.Desc
+	coreReplicationMaster                   *prometheus.Desc
+	coreReplicationSlave                    *prometheus.Desc
+	coreReplicationLastSuccess              *prometheus.Desc
+	coreReplicationLastFail                 *prometheus.Desc
+	coreReplicationSuccessCount             *prometheus.Desc
+	coreReplicationFailCount                *prometheus.Desc
+	coreReplicationReplicating              *prometheus.Desc
+	coreReplicationLastCycleDownloadedBytes *prometheus.Desc
+	coreSearcherDocuments                   *prometheus.Desc
+	coreUpdateHandlerAdds                   *prometheus.Desc
+	coreUpdateHandlerAddsTotal              *prometheus.Desc
+	coreUpdateHandlerAutoCommitsTotal       *prometheus.Desc
+	coreUpdateHandlerCommitsTotal           *prometheus.Desc
+	coreUpdateHandlerDeletesByID            *prometheus.Desc
+	coreUpdateHandlerDeletesByIDTotal       *prometheus.Desc
+	coreUpdateHandlerDeletesByQuery         *prometheus.Desc
+	coreUpdateHandlerDeletesByQueryTotal    *prometheus.Desc
+	coreUpdateHandlerErrors                 *prometheus.Desc
+	coreUpdateHandlerErrorsTotal            *prometheus.Desc
+	coreUpdateHandlerExpungeDeletesTotal    *prometheus.Desc
+	coreUpdateHandlerMergesTotal            *prometheus.Desc
+	coreUpdateHandlerOptimizesTotal         *prometheus.Desc
+	coreUpdateHandlerPendingDocs            *prometheus.Desc
+	coreUpdateHandlerRollbacksTotal         *prometheus.Desc
+	coreUpdateHandlerSoftAutoCommitsTotal   *prometheus.Desc
+	coreUpdateHandlerSplitsTotal            *prometheus.Desc
 
 	coreFSBytes *prometheus.Desc
 
@@ -258,6 +259,11 @@ func NewMetricsCollector(client http.Client, solrBaseURL string) (*MetricsCollec
 		),
 		coreReplicationReplicating: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "metrics", "core_replication_replicating"),
+			"See following URL: https://lucene.apache.org/solr/guide/metrics-reporting.html",
+			[]string{"category", "handler", "core", "collection", "shard", "replica"}, nil,
+		),
+		coreReplicationLastCycleDownloadedBytes: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "metrics", "core_replication_last_cycle_downloaded_bytes"),
 			"See following URL: https://lucene.apache.org/solr/guide/metrics-reporting.html",
 			[]string{"category", "handler", "core", "collection", "shard", "replica"}, nil,
 		),
@@ -744,6 +750,7 @@ func (c *MetricsCollector) Update(ch chan<- prometheus.Metric) error {
 					ch <- prometheus.MustNewConstMetric(c.coreReplicationSuccessCount, prometheus.GaugeValue, value.Get("timesIndexReplicated").Float(), category, handler, core, "", "", "")
 					ch <- prometheus.MustNewConstMetric(c.coreReplicationFailCount, prometheus.GaugeValue, value.Get("timesFailed").Float(), category, handler, core, "", "", "")
 					ch <- prometheus.MustNewConstMetric(c.coreReplicationReplicating, prometheus.GaugeValue, value.Get("isReplicating").Float(), category, handler, core, "", "", "")
+					ch <- prometheus.MustNewConstMetric(c.coreReplicationLastCycleDownloadedBytes, prometheus.GaugeValue, value.Get("lastCycleBytesDownloaded").Float(), category, handler, core, "", "", "")
 				}
 				if path.String() == "SEARCHER.searcher.deletedDocs" || path.String() == "SEARCHER.searcher.maxDoc" || path.String() == "SEARCHER.searcher.numDocs" {
 					ch <- prometheus.MustNewConstMetric(c.coreSearcherDocuments, prometheus.GaugeValue, value.Float(), category, core, splittedPath[2], "", "", "")
@@ -838,6 +845,7 @@ func (c *MetricsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.coreReplicationSuccessCount
 	ch <- c.coreReplicationFailCount
 	ch <- c.coreReplicationReplicating
+	ch <- c.coreReplicationLastCycleDownloadedBytes
 	ch <- c.coreSearcherDocuments
 	ch <- c.coreUpdateHandlerAdds
 	ch <- c.coreUpdateHandlerAddsTotal
